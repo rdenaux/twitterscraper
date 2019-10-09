@@ -34,6 +34,7 @@ RELOAD_URL = 'https://twitter.com/i/search/timeline?f=tweets&vertical=' \
              'default&include_available_features=1&include_entities=1&' \
              'reset_error_state=false&src=typd&max_position={pos}&q={q}&l={lang}'
 INIT_URL_USER = 'https://twitter.com/{u}'
+STATUS_URL = 'https://twitter.com/{u}/status/{i}'
 RELOAD_URL_USER = 'https://twitter.com/i/profiles/show/{u}/timeline/tweets?' \
                   'include_available_features=1&include_entities=1&' \
                   'max_position={pos}&reset_error_state=false'
@@ -51,9 +52,11 @@ def get_proxies():
     list_proxies = [':'.join(elem) for elem in list(zip(list_ip, list_ports))]
     return list_proxies               
                   
-def get_query_url(query, lang, pos, from_user = False):
+def get_query_url(query, lang, pos, from_user = False, status_id=None):
     if from_user:
-        if pos is None:
+        if status_id is not None:
+            return STATUS_URL.format(u=query, i=status_id)
+        elif pos is None:
             return INIT_URL_USER.format(u=query)
         else:
             return RELOAD_URL_USER.format(u=query, pos=pos)
@@ -73,7 +76,7 @@ def linspace(start, stop, n):
 proxies = get_proxies()
 proxy_pool = cycle(proxies)
 
-def query_single_page(query, lang, pos, retry=50, from_user=False, timeout=60):
+def query_single_page(query, lang, pos, retry=50, from_user=False, timeout=60, status_id=None):
     """
     Returns tweets from the given URL.
 
@@ -83,7 +86,7 @@ def query_single_page(query, lang, pos, retry=50, from_user=False, timeout=60):
     :param retry: Number of retries if something goes wrong.
     :return: The list of tweets, the pos argument for getting the next page.
     """
-    url = get_query_url(query, lang, pos, from_user)
+    url = get_query_url(query, lang, pos, from_user, status_id=status_id)
     logger.info('Scraping tweets from {}'.format(url))
 
     try:
@@ -246,6 +249,23 @@ def query_tweets(query, limit=None, begindate=dt.date(2006, 3, 21), enddate=dt.d
 
     return all_tweets
 
+def query_tweet_page(user, status_id):
+    tweets = []
+    try:
+        new_tweets, pos = query_single_page(user, lang='', pos=None, from_user=True, status_id=status_id)
+        if len(new_tweets) == 0:
+            logger.info("Got {} tweets from user {} and status {}".format(len(tweets), user, status_id))
+        tweets += new_tweets
+        return tweets
+    except KeyboardInterrupt:
+        logger.info("Program interrupted by user. Returning tweets gathered "
+                     "so far...")
+    except BaseException:
+        logger.exception("An unknown error occurred! Returning tweets "
+                          "gathered so far.")
+    logger.info("Got {} tweets from username {}.".format(
+        len(tweets), user))
+    return tweets
 
 def query_tweets_from_user(user, limit=None):
     pos = None

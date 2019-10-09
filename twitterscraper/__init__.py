@@ -11,6 +11,7 @@ __license__ = 'MIT'
 
 
 from twitterscraper.query import query_tweets
+from twitterscraper.query import query_tweet_page
 from twitterscraper.query import query_tweets_from_user
 from twitterscraper.query import query_user_info
 from twitterscraper.tweet import Tweet
